@@ -127,7 +127,7 @@ filtered_gdp_df = gdp_df[
 st.markdown(
     f"""
     <a href="{url_b}" target="_blank">
-    <img src ="/logo-wb-header-en.svg">
+    <img src ="logo-wb-header-en.svg">
     </a>
     """,
     unsafe_allow_html=True
