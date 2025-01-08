@@ -1,0 +1,54 @@
+﻿Countries.short_name,Countries.full_name,Countries.sort_order,WHO Europe Member State,Countries.code ,Countries.iso2,Country Code,Countries.who_code
+Albania,Albania,1,Y,ALB,AL,ALB,ALB
+Andorra,Andorra,2,Y,AND,AD,AND,AND
+Armenia,Armenia,3,Y,ARM,AM,ARM,ARM
+Austria,Austria,4,Y,AUT,AT,AUT,AUT
+Azerbaijan,Azerbaijan,5,Y,AZE,AZ,AZE,AZE
+Belarus,Belarus,6,Y,BLR,BY,BLR,BLR
+Belgium,Belgium,7,Y,BEL,BE,BEL,BEL
+Bosnia and Herzegovina,Bosnia and Herzegovina,11,Y,BIH,BA,BIH,BIH
+Bulgaria,Bulgaria,12,Y,BGR,BG,BGR,BUL
+Croatia,Croatia,14,Y,HRV,HR,HRV,CRO
+Cyprus,Cyprus,15,Y,CYP,CY,CYP,CYP
+Czechia,Czech Republic,16,Y,CZE,CZ,CZE,CZH
+Denmark,Denmark,17,Y,DNK,DK,DNK,DEN
+Estonia,Estonia,18,Y,EST,EE,EST,EST
+Finland,Finland,19,Y,FIN,FI,FIN,FIN
+France,France,20,Y,FRA,FR,FRA,FRA
+Georgia,Georgia,21,Y,GEO,GE,GEO,GEO
+Germany,Germany,22,Y,DEU,DE,DEU,DEU
+Greece,Greece,23,Y,GRC,GR,GRC,GRE
+Hungary,Hungary,25,Y,HUN,HU,HUN,HUN
+Iceland,Iceland,26,Y,ISL,IS,ISL,ICE
+Ireland,Ireland,27,Y,IRL,IE,IRL,IRE
+Israel,Israel,28,Y,ISR,IL,ISR,ISR
+Italy,Italy,29,Y,ITA,IT,ITA,ITA
+Kazakhstan,Kazakhstan,30,Y,KAZ,KZ,KAZ,KAZ
+Kyrgyzstan,Kyrgyzstan,31,Y,KGZ,KG,KGZ,KGZ
+Latvia,Latvia,32,Y,LVA,LV,LVA,LVA
+Lithuania,Lithuania,33,Y,LTU,LT,LTU,LTU
+Luxembourg,Luxembourg,34,Y,LUX,LU,LUX,LUX
+Malta,Malta,35,Y,MLT,MT,MLT,MAT
+Monaco,Monaco,36,Y,MCO,MC,MCO,MON
+Montenegro,Montenegro,37,Y,MNE,ME,MNE,MNE
+Netherlands,Netherlands,38,Y,NLD,NL,NLD,NET
+North Macedonia,North Macedonia,39,Y,MKD,MK,MKD,MKD
+Norway,Norway,40,Y,NOR,NO,NOR,NOR
+Poland,Poland,41,Y,POL,PL,POL,POL
+Portugal,Portugal,42,Y,PRT,PT,PRT,POR
+Republic of Moldova,Republic of Moldova,43,Y,MDA,MD,MDA,MDA
+Romania,Romania,44,Y,ROU,RO,ROU,ROM
+Russian Federation,Russian Federation,45,Y,RUS,RU,RUS,RUS
+San Marino,San Marino,46,Y,SMR,SM,SMR,SMR
+Serbia,Serbia,47,Y,SRB,RS,SRB,SRB
+Slovakia,Slovakia,50,Y,SVK,SK,SVK,SVK
+Slovenia,Slovenia,51,Y,SVN,SI,SVN,SVN
+Spain,Spain,52,Y,ESP,ES,ESP,SPA
+Sweden,Sweden,53,Y,SWE,SE,SWE,SWE
+Switzerland,Switzerland,54,Y,CHE,CH,CHE,SWI
+Tajikistan,Tajikistan,55,Y,TJK,TJ,TJK,TJK
+Türkiye,Türkiye,56,Y,TUR,TR,TUR,TUR
+Turkmenistan,Turkmenistan,57,Y,TKM,TM,TKM,TKM
+Ukraine,Ukraine,58,Y,UKR,UA,UKR,UKR
+United Kingdom,United Kingdom,59,Y,GBR,GB,GBR,UNK
+Uzbekistan,Republic of Uzbekistan,65,Y,UZB,UZ,UZB,UZB
