@@ -35,7 +35,6 @@ measure = indicators_list[indicators_list['Indicator.short_name'] == selected_in
 url_a = "http://api.worldbank.org/v2/country/all/indicator/"+ url_code +"?format=json&per_page=20000"
 url_b = "https://data.worldbank.org/indicator/" + url_code + "?"
 
-
 # Declare some useful functions.
 
 @st.cache_data
@@ -116,12 +115,12 @@ column_titles = filtered_countries.columns.tolist()
 iso_acronyms = filtered_countries['Country Code'].tolist()
 
 # Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(iso_acronyms))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
 
+filtered_gdp_df = gdp_df[
+        (gdp_df['Country Code'].isin(iso_acronyms))
+        & (gdp_df['Year'] <= to_year)
+        & (from_year <= gdp_df['Year'])
+    ]
 
 # Add an image
 st.markdown(
@@ -139,7 +138,6 @@ st.line_chart(
     y='Value',
     color='Country Code',
 )
-
 ''
 ''
 
@@ -147,11 +145,9 @@ first_year = gdp_df[gdp_df['Year'] == from_year]
 last_year = gdp_df[gdp_df['Year'] == to_year]
 
 st.header(f' {measure} in {to_year}', divider='gray')
-
 ''
 
 cols = st.columns(4)
-
 
 if len(selected_countries)>0:
     for i, country in enumerate(iso_acronyms):
@@ -173,5 +169,10 @@ if len(selected_countries)>0:
                 value=f'{last_gdp:,.2f}',
                 delta=growth,
                 delta_color=delta_color
-            )
+            )   
+else: print("No data to display")
+
+if len(filtered_gdp_df)>0:
+    pivot_data = filtered_gdp_df.pivot_table(index="Country Code", columns="Year", values="Value")
+    pivot_data 
 else: print("No data to display")
