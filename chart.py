@@ -12,10 +12,8 @@ st.set_page_config(
 
 # Draw the actual page
 # Set the title that appears at the top of the page.
-'''
-## WHO Venice - Well-being economy indicators
-#A tool to visualize charts and data on well-being economy.
-'''
+st.header("WHO Venice - Well-being economy indicators")
+st.subheader("_... a tool to visualize well-being data from public databases_")
 
 # ---------------------------------------------------------------------------
 # Selecting indicators based on their name
@@ -76,12 +74,12 @@ gdp_df = get_gdp_data(url_a)
 # ---------------------------------------------------------------------------
 # Selecting countries based on their name
 data_filename = Path(__file__).parent/'data/countries_WHO_Euro.csv'
-countries_exchange = pd.read_csv(data_filename)                                          #reading the csv
-countries_df = pd.DataFrame(countries_exchange).set_index('Country Code')                #creates dataframe of WHO/EURO country names based on Country Code column
-c = gdp_df['Country Code'].unique()                                                      #creates list of countries from WB indicator based on unique Country Code
-cc = pd.DataFrame(c,columns=['Country Code'])                                            #convert into a dataframe
+countries_exchange = pd.read_csv(data_filename)                                 #reading the csv
+countries_df = pd.DataFrame(countries_exchange).set_index('Country Code')       #creates dataframe of WHO/EURO country names based on Country Code column
+c = gdp_df['Country Code'].unique()                                             #creates list of countries from WB indicator based on unique Country Code
+cc = pd.DataFrame(c,columns=['Country Code'])                                   #convert into a dataframe
 
-countries = pd.merge (cc, countries_df, on="Country Code" )                              #extract only Countries data from EURO
+countries = pd.merge (cc, countries_df, on="Country Code" )                     #extract only Countries data from WHO/EURO
 
 # Add some spacing
 ''
@@ -133,6 +131,7 @@ if len(filtered_gdp_df)>0:
 
 first_year = gdp_df[gdp_df['Year'] == from_year]
 last_year = gdp_df[gdp_df['Year'] == to_year]
+
 cols = st.columns(4)
 
 if len(selected_countries)>0:
@@ -142,7 +141,7 @@ if len(selected_countries)>0:
         with col:
             first_gdp = first_year[first_year['Country Code'] == country]['Value'].iat[0] 
             last_gdp = last_year[last_year['Country Code'] == country]['Value'].iat[0] 
-
+            
             if math.isnan(first_gdp):
                 growth = 'n/a'
                 delta_color = 'off'
@@ -151,15 +150,16 @@ if len(selected_countries)>0:
                 delta_color = 'normal'
 
             st.metric(
-                label=f'{country} Value',
+                label=f'{country} '+ measure,
                 value=f'{last_gdp:,.2f}',
                 delta=growth,
                 delta_color=delta_color
             )   
     if len(filtered_gdp_df)>0:
         pivot_data = filtered_gdp_df.pivot_table(index="Country Code", columns="Year", values="Value")
+        pivot_data = pivot_data.round(2)
         pivot_data 
     else: st.write("No data to display")
 else: st.write("Country data are missing")
 
-st.html ("Data source: <a href=" + url_b + " target=_blank'>World Bank Open Data</a>")
+st.html ("<a href=" + url_b + " target=_blank'>Data source</a>")
