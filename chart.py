@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import requests
 from pathlib import Path
+import altair as alt
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
@@ -12,9 +13,8 @@ st.set_page_config(
 # Draw the actual page
 # Set the title that appears at the top of the page.
 '''
-# Well-being economy indicators
-
-Select indicators from the World Bank Open Data website.
+## WHO Venice - Well-being economy indicators
+#A tool to visualize charts and data on well-being economy.
 '''
 
 # ---------------------------------------------------------------------------
@@ -23,11 +23,10 @@ data_filename = Path(__file__).parent/'data/Indicators.csv'
 indicators = pd.read_csv(data_filename)                 
 indicators_list = pd.DataFrame(indicators)                
 
-area= st.selectbox('Select Indicator category', indicators_list['Indicator.area'].unique())
+area= st.selectbox(''':blue[1/4 - Select Category]''', indicators_list['Indicator.area'].unique())
 filtered_df = indicators_list[indicators_list['Indicator.area'] == area]
 
-#selected_ind = st.selectbox("", indicators_list['Indicator.short_name'])
-selected_ind = st.selectbox("", filtered_df['Indicator.short_name'])
+selected_ind = st.selectbox(''':blue[2/4 - Select Indicator]''', filtered_df['Indicator.short_name'])
 
 url_code = indicators_list[indicators_list['Indicator.short_name'] == selected_ind]['Indicator_Code'].values[0]
 measure = indicators_list[indicators_list['Indicator.short_name'] == selected_ind]['Indicator.short_name'].values[0]
@@ -43,9 +42,7 @@ def get_gdp_data(url):
     This uses caching to avoid having to fetch the data every time.
     """
     
-   # Fetch data from the World Bank API in JSON format
-   # url = "http://api.worldbank.org/v2/country/all/indicator/NY.GDP.MKTP.CD?format=json&per_page=20000"
-    
+    # Fetch data from the World Bank API in JSON format
     response = requests.get(url)
     datalist = response.json()
     
@@ -88,13 +85,12 @@ countries = pd.merge (cc, countries_df, on="Country Code" )                     
 
 # Add some spacing
 ''
-''
 
 min_value = gdp_df['Year'].min()
 max_value = gdp_df['Year'].max()
 
 from_year, to_year = st.slider(
-    'Which years are you interested in?',
+    ''':blue[3/4 - Which years are you interested in?]''',
     min_value=min_value,
     max_value=max_value,
     value=[min_value, max_value])
@@ -103,13 +99,10 @@ if not len(countries):
     st.warning("Select at least one country")
 
 selected_countries = st.multiselect(
-    'Which countries would you like to view?',
+    ''':blue[4/4 - Which countries would you like to view?]''',
     countries['Countries.short_name'])
 
 ''
-''
-''
-
 filtered_countries = countries[countries['Countries.short_name'].isin(selected_countries)]
 column_titles = filtered_countries.columns.tolist()
 iso_acronyms = filtered_countries['Country Code'].tolist()
@@ -122,31 +115,24 @@ filtered_gdp_df = gdp_df[
         & (from_year <= gdp_df['Year'])
     ]
 
-# Add an image
-st.markdown(
-    f"""
-    <a href="{url_b}" target="_blank">info</a>
-    """,
-    unsafe_allow_html=True
-)
-st.header( measure, divider='gray')
-''
 
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='Value',
-    color='Country Code',
-)
-''
-''
+if len(filtered_gdp_df)>0:
+    st.header( measure, divider='gray')
+    # Create an Altair chart
+    chart = alt.Chart(filtered_gdp_df).mark_line(point=True).encode(
+        x=alt.X('Year:O', axis=alt.Axis(format='d')),  
+        y='Value:Q',
+        color='Country Code:N',
+        tooltip=['Year', 'Value', 'Country Code']
+    ).properties(
+        
+    ).interactive()
+
+    # Display the chart in Streamlit
+    st.altair_chart(chart, use_container_width=True)
 
 first_year = gdp_df[gdp_df['Year'] == from_year]
 last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f' {measure} in {to_year}', divider='gray')
-''
-
 cols = st.columns(4)
 
 if len(selected_countries)>0:
@@ -170,9 +156,10 @@ if len(selected_countries)>0:
                 delta=growth,
                 delta_color=delta_color
             )   
-else: print("No data to display")
+    if len(filtered_gdp_df)>0:
+        pivot_data = filtered_gdp_df.pivot_table(index="Country Code", columns="Year", values="Value")
+        pivot_data 
+    else: st.write("No data to display")
+else: st.write("Country data are missing")
 
-if len(filtered_gdp_df)>0:
-    pivot_data = filtered_gdp_df.pivot_table(index="Country Code", columns="Year", values="Value")
-    pivot_data 
-else: print("No data to display")
+st.html ("Data source: <a href=" + url_b + " target=_blank'>World Bank Open Data</a>")
