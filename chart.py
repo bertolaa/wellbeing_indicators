@@ -30,7 +30,7 @@ url_code = indicators_list[indicators_list['Indicator.short_name'] == selected_i
 measure = indicators_list[indicators_list['Indicator.short_name'] == selected_ind]['Indicator.short_name'].values[0]
 
 url_a = "http://api.worldbank.org/v2/country/all/indicator/"+ url_code +"?format=json&per_page=20000"
-url_b = "https://data.worldbank.org/indicator/" + url_code + "?"
+url_b = "https://data.worldbank.org/indicator/" + url_code
 
 # Declare some useful functions.
 
@@ -162,4 +162,4 @@ if len(selected_countries)>0:
     else: st.write("No data to display")
 else: st.write("Country data are missing")
 
-st.html ("<a href=" + url_b + " target=_blank'>Data source</a>")
+st.html("<a href="+url_b+" target='_blank'>Data source</a>")
