@@ -5,7 +5,6 @@ import json
 import requests
 from pathlib import Path
 import altair as alt
-import pandaSDMX as sdmx
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
@@ -78,41 +77,6 @@ def get_wb_data(url):
        
     return gdp_df
 
-def get_oecd_data_sdmx (url):
-    oecd = sdmx.Request("OECD")
-    
-    # Set out everything about the request in the format specified by the OECD API
-    data = oecd.data(
-        resource_id="PDB_LV",
-        key="GBR+FRA+CAN+ITA+DEU+JPN+USA.T_GDPEMP.CPC/all?startTime=2010",
-    ).to_pandas()
-
-    dlist = pd.DataFrame(data).reset_index()
-    dlist.head()
-    
-    # Extract relevant data
-    years = []
-    gdp_values = []
-    country_codes = []
-
-    for i, row in dlist.iterrows():
-            years.append(row['TIME_PERIOD'])
-            gdp_values.append(row['OBS_VALUE'])
-            country_codes.append(row['REF_AREA'])
-         
-    oecd_data = pd.DataFrame({
-        'Country Code': country_codes,
-        'Year': years,
-        'Value': gdp_values
-    })
-        
-    MIN_YEAR = 1960
-    MAX_YEAR = 2024
-
-    # Convert years from string to integers
-    oecd_data['Year'] = pd.to_numeric(oecd_data['Year'])
-       
-    return oecd_data
 
 
 def get_oecd_data(url):
@@ -170,7 +134,7 @@ match source:
         url_b = "https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=" + url_code +"&df[ag]=OECD.ELS.HD"  
          
         #https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_CLI/.M.LI...AA...H?&dimensionAtObservation=AllDimensions&format=csvfilewithlabels
-        gdp_df = get_oecd_data_sdmx (url_a)  
+        #gdp_df = get_oecd_data_sdmx (url_a)  
     case "WB":
         url_a = "http://api.worldbank.org/v2/country/all/indicator/"+ url_code +"?format=json&per_page=20000"
         url_b = "https://data.worldbank.org/indicator/" + url_code
