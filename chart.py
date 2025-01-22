@@ -16,7 +16,7 @@ st.set_page_config(
 # Draw the actual page
 # Set the title that appears at the top of the page.
 
-st.header(":green[WHO Venice - Well-being economy indicators]")
+st.header(":green[Well-being economy indicators]")
 st.write("_... a tool to visualize well-being data from public databases_")
 
 # Two equal columns:
