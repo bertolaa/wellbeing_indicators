@@ -1,7 +1,7 @@
 streamlit
 matplotlib
 pandas
-pandasdmx
+sdmx
 mplcursors
 lxml
 plotly

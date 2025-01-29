@@ -192,6 +192,8 @@ filtered_gdp_df = gdp_df[
     ]
 c2  = col2.container(border=True)
 
+filtered_gdp_df
+
 if len(filtered_gdp_df)>0:
     c2.header( measure, divider='gray')
     
@@ -237,7 +239,7 @@ def lastvalue():
     else: st.write("Data or Country selection are missing")
     return
 
-filtered_gdp_df
+#filtered_gdp_df
 
 if len(filtered_gdp_df)>0:
     pivot_data = filtered_gdp_df.pivot_table(index="Country Code", columns="Year", values="Value")
