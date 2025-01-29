@@ -192,7 +192,7 @@ filtered_gdp_df = gdp_df[
     ]
 c2  = col2.container(border=True)
 
-filtered_gdp_df
+#filtered_gdp_df
 
 if len(filtered_gdp_df)>0:
     c2.header( measure, divider='gray')
