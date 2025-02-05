@@ -26,37 +26,82 @@ col1, col2 = st.columns(2)
 data_filename = Path(__file__).parent/'data/Indicators.csv'
 indicators = pd.read_csv(data_filename)                 
 indicators_list = pd.DataFrame(indicators)                
+sex_split = False
+filter_list = {}
+
 
 #container = st.container(border=True)
 c1 = col1.container(border=True)
+c1.subheader ("Main indicators / countries selection")
 
-area= c1.selectbox(''':green[**1/4 - Select Category**]''', indicators_list['Indicator.area'].unique())
-filtered_df = indicators_list[indicators_list['Indicator.area'] == area]
-c1.write ("")
+# Initialize session state for the inputs
+if 'selected_datasource' not in st.session_state:
+    st.session_state.selected_datasource = indicators_list['Indicator.datasource'].unique()[0]
+if 'selected_cat' not in st.session_state:
+    st.session_state.selected_cat = indicators_list[indicators_list['Indicator.datasource'] == st.session_state.selected_datasource]['Indicator.area'].unique()[0]
+if 'selected_ind' not in st.session_state:
+    st.session_state.selected_ind = indicators_list[(indicators_list['Indicator.datasource'] == st.session_state.selected_datasource) & 
+                                        (indicators_list['Indicator.area'] == st.session_state.selected_cat)]['Indicator.short_name'].unique()[0]
 
-selected_ind = c1.selectbox(''':green[**2/4 - Select Indicator**]''', filtered_df['Indicator.short_name'])
+# Function to update the options for Type based on selected Category
+def update_cat():
+    st.session_state.selected_cat = indicators_list[indicators_list['Indicator.datasource'] == st.session_state.selected_datasource]['Indicator.area'].unique()[0]
+    update_ind()
 
-url_code = indicators_list[indicators_list['Indicator.short_name'] == selected_ind]['Indicator_Code'].values[0]
-measure = indicators_list[indicators_list['Indicator.short_name'] == selected_ind]['Indicator.short_name'].values[0]
-source = indicators_list[indicators_list['Indicator.short_name'] == selected_ind]['Indicator.datasource'].values[0]
+# Function to update the options for Item based on selected Type
+def update_ind():
+    st.session_state.selected_ind= indicators_list[(indicators_list['Indicator.datasource'] == st.session_state.selected_datasource) & 
+                                        (indicators_list['Indicator.area'] == st.session_state.selected_cat)]['Indicator.short_name'].unique()[0]
+    
+# Create widgets for each layer of input
+c1.pills(
+    ''':green[**1/5 - Data from which datasource?**]''', 
+    options = indicators_list['Indicator.datasource'].unique(), 
+    key='selected_datasource',
+    on_change=update_cat
+)
+
+
+c1.selectbox(
+    ''':green[**2/5 Select a category**]''',
+    options=indicators_list[indicators_list['Indicator.datasource'] == st.session_state.selected_datasource]['Indicator.area'].unique(),
+    key='selected_cat',
+    on_change=update_ind
+)
+
+c1.selectbox(
+    ''':green[**3/5 Select an indicator**]''',
+    options=indicators_list[(indicators_list['Indicator.datasource'] == st.session_state.selected_datasource) & 
+               (indicators_list['Indicator.area'] == st.session_state.selected_cat)]['Indicator.short_name'].unique(),
+    key='selected_ind'
+)
+
+source = st.session_state.selected_datasource
+url_code = ''.join(indicators_list[indicators_list['Indicator.short_name'] == st.session_state.selected_ind]['Indicator_Code'].values[0])
+measure = indicators_list[indicators_list['Indicator.short_name'] == st.session_state.selected_ind]['Indicator.short_name'].values[0]
+ind_longtitle = indicators_list[indicators_list['Indicator.short_name'] == st.session_state.selected_ind]['Indicator.long_name'].values[0]
+
+#source = indicators_list[indicators_list['Indicator.short_name'] == st.session_state.selected_ind]['Indicator.datasource'].values
+# ---------------------------------------------------------------------------
+# Filering countries based on their name
+countries_WHOEURO = pd.read_csv(Path(__file__).parent/'data/countries_WHO_Euro.csv')               
+countries_df = pd.DataFrame(countries_WHOEURO)
 
 # Declare some useful functions.
 
 @st.cache_data
 def get_wb_data(url):
-    """Fetch GDP data from the World Bank API.
-    This uses caching to avoid having to fetch the data every time.
-    """
-    
     # Fetch data from the World Bank API in JSON format
     response = requests.get(url)
     datalist = response.json()    
     
+    print ("url WB-->", url_a)
     # Extract relevant data
     years = []
     gdp_values = []
     country_codes = []
-
+    
+  
     for entry in datalist[1]:
         years.append(entry['date'])
         gdp_values.append(entry['value'])
@@ -77,16 +122,9 @@ def get_wb_data(url):
        
     return gdp_df
 
-
-
 def get_oecd_data(url):
     #Fetch data from OECD API in csv
-    #This uses caching to avoid having to fetch the data every time.
-
-   #url = 'https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_CLI/.M.LI...AA...H?&dimensionAtObservation=AllDimensions&format=jsondata'
-    
-   # url = Path(__file__).parent/'data/dati.csv'
-    
+        
     response = requests.get(url)
     if response.status_code == 200:
         try:""
@@ -101,8 +139,7 @@ def get_oecd_data(url):
     
     data = pd.read_csv(url)
     dlist = pd.DataFrame(data)
-    
-    
+ 
     # Extract relevant data
     years = []
     gdp_values = []
@@ -128,38 +165,74 @@ def get_oecd_data(url):
        
     return oecd_data
 
+def get_data_from_eurostat (url_code):
+    import eurostat
+    global filter_list, sex_split
+ 
+    #getting dimensions and data as pandas df
+    df = eurostat.get_data_df(url_code)
+    cols = list(df.columns)
+
+    #setting up filter string for unpivoting
+    not_unique_col = []
+    unpivot_string = []
+    vars_string = []
+    time_period = False
+
+    #defining vars to unpivot
+    for i in cols:
+            if (df[i].nunique() >1) or (): 
+                not_unique_col.append(i)
+
+    for i in not_unique_col:
+        if (time_period):
+            unpivot_string.append(i)
+        else:
+            vars_string.append(i)
+            if i[:3] == 'geo':
+                time_period = True
+                toberenamed = i 
+            else:
+                unique_values = df[i].unique()
+                
+                if i == 'sex':
+                    sex_split = True
+                else: 
+                    filter_list[i] = unique_values.tolist()
+                
+
+    gdp_df = pd.melt (df, id_vars = vars_string, value_vars= unpivot_string, var_name='Year', value_name="Value")
+    gdp_df = gdp_df.rename (columns = {toberenamed : 'Country Code'})
+    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+    return gdp_df
+
+#depending on the datasource setting ISO3 as country code to match data
+countries_df['Country Code'] = countries_df['Countries.code']
+
 match source:
     case "OECD":
         url_a = "https://sdmx.oecd.org/public/rest/data/OECD.SDD.STE," + url_code +"/.M.LI...AA...H?startPeriod=2023-02&dimensionAtObservation=AllDimensions"
         url_b = "https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=" + url_code +"&df[ag]=OECD.ELS.HD"  
          
-        #https://sdmx.oecd.org/public/rest/data/OECD.SDD.STES,DSD_STES@DF_CLI/.M.LI...AA...H?&dimensionAtObservation=AllDimensions&format=csvfilewithlabels
-        #gdp_df = get_oecd_data_sdmx (url_a)  
-    case "WB":
-        url_a = "http://api.worldbank.org/v2/country/all/indicator/"+ url_code +"?format=json&per_page=20000"
+    case "WORLD BANK":
+        url_a = "https://api.worldbank.org/v2/country/all/indicator/"+ url_code +"?format=json&per_page=20000"
         url_b = "https://data.worldbank.org/indicator/" + url_code
-        
         gdp_df = get_wb_data(url_a)  
+        
+    case "EUROSTAT":
+        url_b = "https://ec.europa.eu/eurostat/web/products-datasets/-/"+ url_code
+        gdp_df = get_data_from_eurostat(url_code)
+        countries_df['Country Code'] = countries_df['Countries.iso2']
     case _:
         c1.write ("No datasource selected")
 
-#WB structure query
-# http://api.worldbank.org/v2/country/all/indicator/+ url_code +"?format=json&per_page=20000"
-# url_b = "https://data.worldbank.org/indicator/" + url_code
+countries_df = countries_df.set_index('Country Code')
 
-#OECD structure query
-# https://sdmx.oecd.org/public/rest/dataflow/OECD.ELS.HD/DSD_SHA@DF_SHA_HK/1.0?references=all
+c = gdp_df['Country Code'].unique()   
+cc = pd.DataFrame(c, columns=['Country Code'])              
 
-
-# ---------------------------------------------------------------------------
-# Selecting countries based on their name
-data_filename = Path(__file__).parent/'data/countries_WHO_Euro.csv'
-countries_exchange = pd.read_csv(data_filename)                                 #reading the csv
-countries_df = pd.DataFrame(countries_exchange).set_index('Country Code')       #creates dataframe of WHO/EURO country names based on Country Code column
-c = gdp_df['Country Code'].unique()                                             #creates list of countries from WB indicator based on unique Country Code
-cc = pd.DataFrame(c,columns=['Country Code'])                                   #convert into a dataframe
-
-countries = pd.merge (cc, countries_df, on="Country Code" )                     #extract only Countries data from WHO/EURO
+#extract only Countries data from WHO/EURO
+countries = pd.merge (cc, countries_df, on="Country Code" )                    
 
 min_value = gdp_df['Year'].min()
 max_value = gdp_df['Year'].max()
@@ -167,7 +240,7 @@ max_value = gdp_df['Year'].max()
 c1.write ("")
 
 from_year, to_year = c1.slider(
-    ''':green[**3/4 - Which years are you interested in?**]''',
+    ''':green[**4/5 - Which years are you interested in?**]''',
     min_value=min_value,
     max_value=max_value,
     value=[min_value, max_value])
@@ -176,75 +249,98 @@ if not len(countries):
     st.warning("Select at least one country")
 
 selected_countries = c1.multiselect(
-    ''':green[**4/4 - Which countries would you like to view?**]''',
+    ''':green[**5/5 - Which countries would you like to view?**]''',
     countries['Countries.short_name'])
 
 filtered_countries = countries[countries['Countries.short_name'].isin(selected_countries)]
 column_titles = filtered_countries.columns.tolist()
 iso_acronyms = filtered_countries['Country Code'].tolist()
+filter_criteria = {}
 
-# Filter the data
-
-filtered_gdp_df = gdp_df[
-        (gdp_df['Country Code'].isin(iso_acronyms))
-        & (gdp_df['Year'] <= to_year)
-        & (from_year <= gdp_df['Year'])
-    ]
 c2  = col2.container(border=True)
 
-#filtered_gdp_df
-
-if len(filtered_gdp_df)>0:
-    c2.header( measure, divider='gray')
+#panel for optional filters if any in the data source
+if len(filter_list) > 0:
+    print("len filter list", len(filter_list))
     
-    # Create an Altair chart
-    chart = alt.Chart(filtered_gdp_df).mark_line(point=True).encode(
-        x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
-        y='Value:Q',
-        color='Country Code:N',
-        tooltip=['Year', 'Value', 'Country Code']
-    ).properties(
-        
-    ).interactive()
+    c2.subheader ("Filtering dimensions...")    
+    if sex_split: c2.write(":green[**- Sex disaggregation**]")
+    
+    #Filtering data with indicator-specific dimensions
+    for key, values in filter_list.items():
+        filter_criteria[key] = c2.selectbox(f':green[**Select a value for {key}**]', values)
+elif sex_split: 
+    c2.subheader ("Filtering dimensions...")    
+    c2.write(":green[**- Sex disaggregation**]")
 
-    # Display the chart in Streamlit
-    c2.altair_chart(chart, use_container_width=True)
+# Filter the data
+filtered_gdp_df = gdp_df[
+        (gdp_df['Country Code'].isin(iso_acronyms)) & (gdp_df['Year'] <= to_year) & (from_year <= gdp_df['Year'])
+    ]
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-def lastvalue():
-    cols = st.columns(4)
-    if len(selected_countries)>0:
-        for i, country in enumerate(iso_acronyms):
-            col = cols[i % len(cols)]
-
-            with col:
-                first_gdp = first_year[first_year['Country Code'] == country]['Value'].iat[0] 
-                last_gdp = last_year[last_year['Country Code'] == country]['Value'].iat[0] 
-                
-                if math.isnan(first_gdp):
-                    growth = 'n/a'
-                    delta_color = 'off'
-                else:
-                    growth = f'{last_gdp / first_gdp:,.2f}x'
-                    delta_color = 'normal'
-
-                st.metric(
-                    label=f'{country} '+ ' - '+ measure,
-                    value=f'{last_gdp:,.2f}',
-                    delta=growth,
-                    delta_color=delta_color
-                )   
-    else: st.write("Data or Country selection are missing")
-    return
-
-#filtered_gdp_df
+#aligning boxes
+col1, col2 = st.columns(2)
+c1 = col1.container(border=True)
+c2 = col2.container(border=True)
 
 if len(filtered_gdp_df)>0:
-    pivot_data = filtered_gdp_df.pivot_table(index="Country Code", columns="Year", values="Value")
-    pivot_data = pivot_data.round(2)
-    st.header ("Data table - " + measure)   
-    pivot_data
-    c2.html("<a href="+url_b+" target='_blank'>Data source</a>")
-else: c2.write("Select indicator and country... No data to display with this selection")
+    data_to_chart = filtered_gdp_df
+    
+    #filtering based on previous selections
+    for key, value in filter_criteria.items():
+        # filter with dimensions criteria
+        data_to_chart = data_to_chart[data_to_chart[key] == value]
+        
+    if sex_split:
+        #drawing the chart for sex=F
+        dtc = data_to_chart[(data_to_chart['sex'] == 'F')]
+        chart = alt.Chart(dtc).mark_line(point=True).encode(
+            x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
+            y='Value:Q',
+            color='Country Code:N',
+            tooltip=['Year', 'Value', 'Country Code']
+        ).properties().interactive()
+        #Display the chart in Streamlit
+        c1.header (measure + " - Sex = F")
+        c1.altair_chart(chart, use_container_width=True)
+        pivot_data = dtc.pivot_table(index="Country Code", columns="Year", values="Value")
+        pivot_data = pivot_data.round(2)
+        c1.header ("Data table - " + measure + " - Sex = F")   
+        c1.write(pivot_data)
+
+        #drawing the chart for sex=M
+        dtc = data_to_chart[(data_to_chart['sex'] == 'M')]
+        chart = alt.Chart(dtc).mark_line(point=True).encode(
+            x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
+            y='Value:Q',
+            color='Country Code:N',
+            tooltip=['Year', 'Value', 'Country Code']
+        ).properties().interactive()
+        #Display the chart in Streamlit
+        c2.header (measure + " - Sex = M")
+        c2.altair_chart(chart, use_container_width=True)
+        pivot_data = dtc.pivot_table(index="Country Code", columns="Year", values="Value")
+        pivot_data = pivot_data.round(2)
+        c2.header ("Data table - " + measure + " - Sex = M")   
+        c2.write(pivot_data)
+    else:           
+            #drawing the chart when sex is not a dimension
+            chart = alt.Chart(data_to_chart).mark_line(point=True).encode(
+            x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
+            y='Value:Q',
+            color='Country Code:N',
+            tooltip=['Year', 'Value', 'Country Code']
+            ).properties().interactive()
+            #Display the chart in Streamlit
+            st.header (ind_longtitle)
+            st.altair_chart(chart, use_container_width=True) 
+            pivot_data = data_to_chart.pivot_table(index="Country Code", columns="Year", values="Value")
+            pivot_data = pivot_data.round(2)
+            st.header ("Data table - " + measure)   
+            st.write(pivot_data)
+else:
+    c1.write(":red[Select indicator and country... No data to display with this selection]")
+
+col1, col2 = st.columns(2)
+c1 = col1.container(border=False)
+c1.html("<a href="+url_b+" target='_blank'>Data source</a>")         
