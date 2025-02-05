@@ -6,3 +6,4 @@ mplcursors
 lxml
 plotly
 requests
+eurostat
