@@ -7,4 +7,3 @@ lxml
 plotly
 requests
 eurostat
-sydney
