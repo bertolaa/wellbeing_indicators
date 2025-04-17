@@ -9,7 +9,7 @@ import xlrd
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='Well-being economy indicators',
+    page_title='Well-being economy analysis tool',
     layout="wide",
 )
 
@@ -82,7 +82,9 @@ def get_data_from_eurostat (url_code):
                     sex_split = True
                 else: 
                     filter_list[i] = unique_values.tolist()
-                
+    
+    #print ("id_vars", vars_string)
+    #print ("value_vars", unpivot_string)                
     gdp_df = pd.melt (df, id_vars = vars_string, value_vars= unpivot_string, var_name='Year', value_name="Value")
     gdp_df = gdp_df.rename (columns = {toberenamed : 'Country Code'})
     gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
@@ -130,6 +132,7 @@ def get_data_from_whoeurope (url_code):
     df_cleaned = df[ df['Country Code'] != '']
     gdp_df = df_cleaned.sort_values(by=['Country Code', 'Year'])
     gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+    print (gdp_df.columns)
     return gdp_df
 
 def get_data_from_OECD (url_code):
@@ -174,22 +177,123 @@ def get_data_from_OECD (url_code):
     gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
     return gdp_df
 
+def get_data_from_WHOHESR (url_code):
+    global sex_split, filter_list
+    
+    not_unique_col = []
+    unpivot_string = []
+    vars_string = []
+    
+    if (source== "WHO/HESRI"): data_filename = Path(__file__).parent/'data/HESR1.xlsx'
+    else: data_filename = Path(__file__).parent/'data/HESR2.xlsx'
+    
+    hesr = pd.read_excel(data_filename)                     
+    df = pd.DataFrame(hesr)  
+    print ("len(df) before filtering",len(df))
+                    
+    df = df[df['indicator_abbr'] == url_code]
+    print ("len(df) after filtering",len(df))
+
+    cols = list(df.columns)
+    
+    for i in cols:
+        if (df[i].nunique()>1): not_unique_col.append(i)
+       
+    for i in not_unique_col:
+        vars_string.append(i)
+        unique_values = df[i].unique()
+                
+        if i == 'sex':
+            sex_split = True
+        else: 
+            filter_list[i] = unique_values.tolist()
+    
+    
+    #lighten the dataframe        
+    keys_to_remove = ['Country Code', 'Year', 'Value', 'population']  
+    if (source == 'WHO/HESRI 2'): keys_to_remove += ['Education', 'Income']
+    for key in keys_to_remove: 
+        if key in filter_list: del filter_list[key]
+    
+    #df = df.loc[df.groupby('Country Code')['Year'].idxmax()]
+    
+    df_cleaned = df.dropna()  
+    print("filter_list", filter_list)
+    print (df.head())    
+    return df_cleaned
+
+def draw_chart (df, measure, container, sexdim):
+    global sex_split
+    filter = 'Country Code:N'
+
+    chart = alt.Chart(df).mark_line(point=True).encode(
+                x=alt.X('Year:Q', sort='ascending', axis=alt.Axis(format='d')),   
+                y='Value:Q',
+                color= filter,
+                tooltip=['Year', 'Value', 'Country Code']
+            ).properties().interactive()
+            
+    if sex_split: headertext = measure + " - Sex = " + sexdim
+    else:  headertext = measure
+
+    pivot_data = df.pivot_table(index="Country Code", columns="Year", values="Value").round(2)
+    
+    with container:
+        st.header (headertext)
+        st.altair_chart(chart, use_container_width=True)        
+        st.header ("Data table - " + headertext)   
+        st.write(pivot_data)
+    return
+
+def draw_chart_hesr (df, measure, container, sexdim):
+    global sex_split, filter_criteria
+    filter = 'Country Code:N'
+
+    # Create the point chart
+    points = alt.Chart(df).mark_point(filled=True, size=50).encode(
+        alt.X('Value:Q'),
+        alt.Y('Country Code:N', sort=alt.EncodingSortField(field='Country', order='ascending')),
+        alt.Color('Education:N', legend=alt.Legend(title='Education Level', values=['Low', 'Medium', 'High']))  # Specify legend order
+    )
+
+    # Create the line chart with separate lines for each country
+    lines = alt.Chart(df).mark_line(color='black').encode(
+        alt.X('Value:Q'),
+        alt.Y('Country Code:N', sort=alt.EncodingSortField(field='Country Code', order='ascending')),
+        alt.Detail('Country Code:N')  # Create separate lines for each country
+    )
+
+    # Combine the charts
+    chart = (points + lines).properties(title='Education Levels by Country')
+            
+    if sex_split: headertext = measure + " - Sex = " + sexdim
+    else:  headertext = measure
+
+    pivot_data = df.pivot_table(index="Country Code", columns="Year", values="Value").round(2)
+    
+    with container:
+        st.header (headertext)
+        st.altair_chart(chart, use_container_width=True)        
+        st.header ("Data table - " + headertext)   
+        st.write(pivot_data)
+    return
+
 ##############################################################################################################
 # Draw the actual page
 # Set the title that appears at the top of the page.
 ##############################################################################################################
 
-st.header(":green[Well-being economy indicators]")
-st.write("_... a tool to visualize well-being data from public databases_")
+st.header(":green[Well-being economy analysis tool]")
+st.write("_... to visualize well-being data from public databases_")
 
 # Populating variables on "indicators.xls" and "countries_WHO_Euro.csv" files
-data_filename = Path(__file__).parent/'data/Indicators.xls'
+data_filename = Path(__file__).parent/'data/Indicators.xlsx'
 indicators = pd.read_excel(data_filename)                 
 indicators_df = pd.DataFrame(indicators)                
 sex_split = False
 filter_list = {}
 
-countries_WHOEURO = pd.read_csv(Path(__file__).parent/'data/countries_WHO_Euro.csv')               
+countries_WHOEURO = pd.read_excel(Path(__file__).parent/'data/countries_WHO_Euro.xls') 
 countries_df = pd.DataFrame(countries_WHOEURO)
 
 #Picking ISO3 as country code to match data
@@ -200,6 +304,7 @@ options = ["Explore countries", "Country Profile"]
 
 mod = st.pills ("Select type of visualization", options) 
 
+#Explore countries 
 if ( mod == "Explore countries" ):
     # Two equal columns:
     col1, col2 = st.columns(2)
@@ -254,6 +359,7 @@ if ( mod == "Explore countries" ):
     measure = indicators_df[indicators_df['Indicator.short_name'] == st.session_state.selected_ind]['Indicator.short_name'].values[0]
     ind_longtitle = indicators_df[indicators_df['Indicator.short_name'] == st.session_state.selected_ind]['Indicator.long_name'].values[0]
 
+    #selecting data source
     match source:
         case "OECD":
             url_a = "https://sdmx.oecd.org/public/rest/data/" + url_code
@@ -274,6 +380,16 @@ if ( mod == "Explore countries" ):
             url_a = "https://dw.euro.who.int/api/v3/Batch/Measures?codes="+ url_code
             url_b = "https://dw.euro.who.int/api/v3/Batch/Measures?codes="+ url_code
             gdp_df = get_data_from_whoeurope(url_a)
+
+        case "WHO/HESRI":
+            url_a = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+            url_b = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+            gdp_df = get_data_from_WHOHESR (url_code)
+            
+        case "WHO/HESRI 2":
+            url_a = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+            url_b = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+            gdp_df = get_data_from_WHOHESR (url_code)
         
         case _:
             c1.write ("No datasource selected")
@@ -286,10 +402,10 @@ if ( mod == "Explore countries" ):
     #extract only Countries data from WHO/EURO
     countries = pd.merge (cc, countries_df, on="Country Code" )                    
 
+    gdp_df = gdp_df.dropna()  
+    
     min_value = gdp_df['Year'].min()
     max_value = gdp_df['Year'].max()
-
-    c1.write ("")
 
     from_year, to_year = c1.slider(
         ''':green[**4/5 - Which years are you interested in?**]''',
@@ -300,8 +416,15 @@ if ( mod == "Explore countries" ):
     if not len(countries):
         st.warning("Select at least one country")
 
-    selected_countries = c1.multiselect(
-        ''':green[**5/5 - Which countries would you like to view?**]''',
+    country_container = c1.container()  
+    sci_selected = c1.checkbox("Small Countries Initiative")  
+
+    #Countried selection pane
+    if sci_selected:
+        selected_countries = country_container.multiselect (''':green[**5/5 - Which countries would you like to view?**]''',
+        countries['Countries.short_name'], countries.loc[countries['group']=='SCI', 'Countries.short_name'] )         
+    else:
+        selected_countries = country_container.multiselect (''':green[**5/5 - Which countries would you like to view?**]''',
         countries['Countries.short_name'])
 
     filtered_countries = countries[countries['Countries.short_name'].isin(selected_countries)]
@@ -311,17 +434,18 @@ if ( mod == "Explore countries" ):
 
     c2  = col2.container(border=True)
 
-    #panel for optional filters if any in the data source
+    #panel for optional filters - if any - in the data source
     if len(filter_list) > 0:
         print("len filter list", len(filter_list))
         
         c2.subheader ("Filter dimensions...")    
         if sex_split: c2.write(":green[**- Sex disaggregation**]")
         
+        print (filter_list)
         #Filtering data with indicator-specific dimensions
         for key, values in filter_list.items():
             filter_criteria[key] = c2.selectbox(f':green[**Select a value for {key}**]', values)
-            
+                
     elif sex_split: 
         c2.subheader ("Filter dimensions...")    
         c2.write(":green[**- Sex disaggregation**]")
@@ -343,53 +467,24 @@ if ( mod == "Explore countries" ):
         for key, value in filter_criteria.items():
             # filter with dimensions criteria
             data_to_chart = data_to_chart[data_to_chart[key] == value]
-            
+
+#########################           
         if sex_split:
             #prep the chart for sex=F
             dtc = data_to_chart[(data_to_chart['sex'] == 'F') | (data_to_chart['sex'] == 'FEMALE')]
-            chart = alt.Chart(dtc).mark_line(point=True).encode(
-                x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
-                y='Value:Q',
-                color='Country Code:N',
-                tooltip=['Year', 'Value', 'Country Code']
-            ).properties().interactive()
-            
-            #Display the chart in Streamlit for SEX = F
-            c1.header (measure + " - Sex = F")
-            c1.altair_chart(chart, use_container_width=True)
-            pivot_data = dtc.pivot_table(index="Country Code", columns="Year", values="Value").round(2)
-            c1.header ("Data table - " + measure + " - Sex = F")   
-            c1.write(pivot_data)
-
+            if (source=='WHO/HESRI 2'): draw_chart_hesr(dtc, measure, c1, 'F')
+            else: draw_chart(dtc, measure, c1, 'F')
+        
             #prep the chart for sex=M
             dtc = data_to_chart[(data_to_chart['sex'] == 'M')  | (data_to_chart['sex'] == 'MALE')]
-            chart = alt.Chart(dtc).mark_line(point=True).encode(
-                x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
-                y='Value:Q',
-                color='Country Code:N',
-                tooltip=['Year', 'Value', 'Country Code']
-            ).properties().interactive()
-            
-            #Display the chart in Streamlit
-            c2.header (measure + " - Sex = M")
-            c2.altair_chart(chart, use_container_width=True)
-            pivot_data = dtc.pivot_table(index="Country Code", columns="Year", values="Value").round(2)
-            c2.header ("Data table - " + measure + " - Sex = M")   
-            c2.write(pivot_data)
+            if (source=='WHO/HESRI 2'): draw_chart_hesr(dtc, measure, c2, 'M')
+            else: draw_chart(dtc, measure, c2, 'M')
+
         else:           
-                #drawing the chart when sex is not a dimension
-                chart = alt.Chart(data_to_chart).mark_line(point=True).encode(
-                x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
-                y='Value:Q',
-                color='Country Code:N',
-                tooltip=['Year', 'Value', 'Country Code']
-                ).properties().interactive()
-                #Display the chart in Streamlit
-                st.subheader (ind_longtitle)
-                st.altair_chart(chart, use_container_width=True) 
-                pivot_data = data_to_chart.pivot_table(index="Country Code", columns="Year", values="Value").round(2)
-                st.subheader ("Data table - " + measure)   
-                st.write(pivot_data)
+            #drawing the chart when sex is not a dimension
+            draw_chart (data_to_chart, measure, c1, "")
+                                
+####################################                
     else:
         c1.write(":red[Select indicator and country... No data to display with this selection]")
 
@@ -408,8 +503,6 @@ elif (mod == "Country Profile"):
      ''':green[*For which country would you like to produce a report?**]''', countries_df['Countries.short_name'], index=None)
 
     filtered_countries = countries_df[countries_df['Countries.short_name'] == selected_country]       
-    filter_criteria = {}
-    filter_columns = {}
     iso_acronyms = filtered_countries['Country Code'].to_list()
     indi_df = indicators_df[indicators_df['Country_Profile'] == True]
     
@@ -423,13 +516,13 @@ elif (mod == "Country Profile"):
         for index, row in indi_df.iterrows():
             iso_acronyms = filtered_countries['Country Code'].to_list()
             url_code = row['Indicator_Code']
-            sexocc = {}
             
             #title of the indicator            
             c1.subheader (str(row['Indicator.datasource'])+ " - " +(str(row['Indicator.short_name'])))
             
+            source = row['Indicator.datasource']            
             #getting data
-            match row['Indicator.datasource']:
+            match source:
                 case "OECD":
                     url_a = "https://sdmx.oecd.org/public/rest/data/" + url_code
                     url_b = "https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=" + url_code +"&df[ag]=OECD.ELS.HD"  
@@ -445,35 +538,51 @@ elif (mod == "Country Profile"):
                     gdp_df = get_data_from_eurostat(url_code)
                     iso_acronyms = filtered_countries['Countries.iso2'].to_list()
                     url_a = url_b
-
-                
+                                  
                 case "WHO/Europe":
                     url_a = "https://dw.euro.who.int/api/v3/Batch/Measures?codes="+ url_code
                     url_b = "https://dw.euro.who.int/api/v3/Batch/Measures?codes="+ url_code
                     gdp_df = get_data_from_whoeurope(url_a)
+                
+                case "WHO/HESRI":
+                    url_a = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+                    url_b = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+                    gdp_df = get_data_from_WHOHESR (url_code)
             
-            from_year = gdp_df['Year'].min()
-            to_year = gdp_df['Year'].max()
+                case "WHO/HESRI 2":
+                    url_a = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+                    url_b = "http://worldhealthorg.shinyapps.io/european_health_equity_dataset/"
+                    gdp_df = get_data_from_WHOHESR (url_code)
+            
+            #filtering data by country selection
+            dtc = gdp_df[(gdp_df['Country Code'].isin(iso_acronyms))]
+            
+            # Calculate the min and max of the 'Value' column
+            value_min = dtc['Value'].min()
+            value_max = dtc['Value'].max()
+            
+            # Calculate the center
+            center = (value_min + value_max) / 2
 
-            filtered_gdp_df = gdp_df[
-            (gdp_df['Country Code'].isin(iso_acronyms)) & (gdp_df['Year'] <= to_year) & (from_year <= gdp_df['Year'])]          
-           
-            if (len(filtered_gdp_df) > 0):
-                filtered_gdp_df = filtered_gdp_df.dropna()         
-                column_titles = filtered_gdp_df.columns.tolist()
+            # Calculate the range for the y-axis
+            y_min = center - (value_max - value_min)/2 * 1.2
+            y_max = center + (value_max - value_min)/2 * 1.2
+                      
+            #preparing the chart command
+            if (len(dtc) > 0):
+                dtc = dtc.dropna()         
+                column_titles = dtc.columns.tolist()
                 dims_lower = [dim.lower() for dim in column_titles]
                 print (url_code, column_titles, dims_lower)
                 dims2 = [dim for dim in column_titles if ((dim != 'Year') and (dim != 'Value'))]
             
-                #dims_chart needed to draw dimensions lines in the chart
-                print ('dims2 before', dims2)      
+                #dims2 needed to draw dimensions lines in the chart
                 if (len(dims2) > 1): dims2.remove("Country Code")
-                print ('dims2 after', dims2)          
-            
-                dtc = filtered_gdp_df
+
+                #chart command
                 chart = alt.Chart(dtc).mark_line(point=True).encode(
                 x=alt.X('Year:Q', axis=alt.Axis(format='d')),   
-                y='Value:Q',
+                y=alt.Y('Value:Q', scale=alt.Scale(domain=[y_min, y_max])),
                 color = "".join(dims2),                 
                 tooltip=['Year', 'Value', 'Country Code']
                 ).properties().interactive()
@@ -481,7 +590,8 @@ elif (mod == "Country Profile"):
                 #Display the chart in Streamlit for each unique occurrence of dimension SEX
                 c1.altair_chart(chart, use_container_width=True)
             
-                pivot_data = pd.pivot_table(filtered_gdp_df, index= dims2, columns="Year", values="Value", aggfunc='sum').round(2)   
+                #pivoting data to show table below the chart
+                pivot_data = pd.pivot_table(dtc, index= dims2, columns="Year", values="Value", aggfunc='sum').round(2)   
                 c1.write (pivot_data)
                 
             else: c1.write(":red[Data not available for this indicator]")
@@ -492,9 +602,6 @@ elif (mod == "Country Profile"):
 else:
     st.write ("Select to proceed...")              
 
-
-
-
 #*********************************************************
             
-            
+    
