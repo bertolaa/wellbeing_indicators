@@ -9,3 +9,10 @@ requests
 eurostat
 xlrd
 openpyxl
+toml
+openai
+altair 
+vega_datasets 
+python-docx 
+kaleido
+vl-convert-python
